@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/leaflet-control-geocoder.Geocoder.css">
+        <link rel="stylesheet" href="css/leaflet-measure.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title></title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet-control-geocoder.Geocoder.js"></script>
+        <script src="js/leaflet-measure.js"></script>
+        <script src="data/Cobranza_Cod_IPV_1.js"></script>
+        <script>
+        var highlightLayer;
+        function highlightFeature(e) {
+            highlightLayer = e.target;
+
+            if (e.target.feature.geometry.type === 'LineString' || e.target.feature.geometry.type === 'MultiLineString') {
+              highlightLayer.setStyle({
+                color: '#07d5e8',
+              });
+            } else {
+              highlightLayer.setStyle({
+                fillColor: '#07d5e8',
+                fillOpacity: 1
+              });
+            }
+        }
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:28, minZoom:1
+        }).fitBounds([[-26.879976220041367,-65.31726030136761],[-26.7571236949557,-65.05591947527628]]);
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/tomchadwin/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // add class to format popup if it contains media
+		function addClassToPopupIfMedia(content, popup) {
+			var tempDiv = document.createElement('div');
+			tempDiv.innerHTML = content;
+			if (tempDiv.querySelector('td img')) {
+				popup._contentNode.classList.add('media');
+					// Delay to force the redraw
+					setTimeout(function() {
+						popup.update();
+					}, 10);
+			} else {
+				popup._contentNode.classList.remove('media');
+			}
+		}
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        var measureControl = new L.Control.Measure({
+            position: 'topleft',
+            primaryLengthUnit: 'meters',
+            secondaryLengthUnit: 'kilometers',
+            primaryAreaUnit: 'sqmeters',
+            secondaryAreaUnit: 'hectares'
+        });
+        measureControl.addTo(map);
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].innerHTML = '';
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].className += ' fas fa-ruler';
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+        }
+        map.createPane('pane_GoogleStyle_0');
+        map.getPane('pane_GoogleStyle_0').style.zIndex = 400;
+        var layer_GoogleStyle_0 = L.tileLayer('https://maps.googleapis.com/maps/vt?pb=!1m5!1m4!1i{z}!2i{x}!3i{y}!4i256!2m3!1e0!2sm!3i690435309!3m17!2ses!3sUS!5e18!12m4!1e68!2m2!1sset!2sRoadmap!12m3!1e37!2m1!1ssmartmaps!12m4!1e26!2m2!1sstyles!2zcy5lOmd8cC5jOiMxZDJjNGQscy5lOmwudC5mfHAuYzojOGVjM2I5LHMuZTpsLnQuc3xwLmM6IzFhMzY0NixzLnQ6MTd8cy5lOmcuc3xwLmM6IzRiNjg3OCxzLnQ6MjF8cy5lOmwudC5mfHAuYzojNjQ3NzllLHMudDoxOHxzLmU6Zy5zfHAuYzojNGI2ODc4LHMudDo4MXxzLmU6Zy5zfHAuYzojMzM0ZTg3LHMudDo4MnxzLmU6Z3xwLmM6IzAyM2U1OCxzLnQ6MnxzLmU6Z3xwLmM6IzI4M2Q2YSxzLnQ6MnxzLmU6bC50LmZ8cC5jOiM2ZjliYTUscy50OjJ8cy5lOmwudC5zfHAuYzojMWQyYzRkLHMudDo0MHxzLmU6Zy5mfHAuYzojMDIzZTU4LHMudDo0MHxzLmU6bC50LmZ8cC5jOiMzQzc2ODAscy50OjN8cy5lOmd8cC5jOiMzMDRhN2Qscy50OjN8cy5lOmwudC5mfHAuYzojOThhNWJlLHMudDozfHMuZTpsLnQuc3xwLmM6IzFkMmM0ZCxzLnQ6NDl8cy5lOmd8cC5jOiMyYzY2NzUscy50OjQ5fHMuZTpnLnN8cC5jOiMyNTU3NjMscy50OjQ5fHMuZTpsLnQuZnxwLmM6I2IwZDVjZSxzLnQ6NDl8cy5lOmwudC5zfHAuYzojMDIzZTU4LHMudDo0fHMuZTpsLnQuZnxwLmM6Izk4YTViZSxzLnQ6NHxzLmU6bC50LnN8cC5jOiMxZDJjNGQscy50OjY1fHMuZTpnLmZ8cC5jOiMyODNkNmEscy50OjY2fHMuZTpnfHAuYzojM2E0NzYyLHMudDo2fHMuZTpnfHAuYzojMGUxNjI2LHMudDo2fHMuZTpsLnQuZnxwLmM6IzRlNmQ3MA!4e0', {
+            pane: 'pane_GoogleStyle_0',
+            opacity: 1.0,
+            attribution: '',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 18
+        });
+        layer_GoogleStyle_0;
+        map.addLayer(layer_GoogleStyle_0);
+        function pop_Cobranza_Cod_IPV_1(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">fid</th>\
+                        <td class="visible-with-data" id="fid">' + (feature.properties['fid'] !== null ? autolinker.link(feature.properties['fid'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Name</th>\
+                        <td class="visible-with-data" id="Name">' + (feature.properties['Name'] !== null ? autolinker.link(feature.properties['Name'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">EMPRESA</th>\
+                        <td class="visible-with-data" id="EMPRESA">' + (feature.properties['EMPRESA'] !== null ? autolinker.link(feature.properties['EMPRESA'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">TIPO</th>\
+                        <td class="visible-with-data" id="TIPO">' + (feature.properties['TIPO'] !== null ? autolinker.link(feature.properties['TIPO'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">GESTION</th>\
+                        <td class="visible-with-data" id="GESTION">' + (feature.properties['GESTION'] !== null ? autolinker.link(feature.properties['GESTION'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">LOCALIDAD</th>\
+                        <td class="visible-with-data" id="LOCALIDAD">' + (feature.properties['LOCALIDAD'] !== null ? autolinker.link(feature.properties['LOCALIDAD'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">AÑO</th>\
+                        <td class="visible-with-data" id="AÑO">' + (feature.properties['AÑO'] !== null ? autolinker.link(feature.properties['AÑO'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">PROGRAMA</th>\
+                        <td class="visible-with-data" id="PROGRAMA">' + (feature.properties['PROGRAMA'] !== null ? autolinker.link(feature.properties['PROGRAMA'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">OBSERV.</th>\
+                        <td class="visible-with-data" id="OBSERV.">' + (feature.properties['OBSERV.'] !== null ? autolinker.link(feature.properties['OBSERV.'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">PADRON</th>\
+                        <td class="visible-with-data" id="PADRON">' + (feature.properties['PADRON'] !== null ? autolinker.link(feature.properties['PADRON'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">SECTOR</th>\
+                        <td class="visible-with-data" id="SECTOR">' + (feature.properties['SECTOR'] !== null ? autolinker.link(feature.properties['SECTOR'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">MANZANA</th>\
+                        <td class="visible-with-data" id="MANZANA">' + (feature.properties['MANZANA'] !== null ? autolinker.link(feature.properties['MANZANA'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">LOTE</th>\
+                        <td class="visible-with-data" id="LOTE">' + (feature.properties['LOTE'] !== null ? autolinker.link(feature.properties['LOTE'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">UNIDAD</th>\
+                        <td class="visible-with-data" id="UNIDAD">' + (feature.properties['UNIDAD'] !== null ? autolinker.link(feature.properties['UNIDAD'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">RELEV PH</th>\
+                        <td class="visible-with-data" id="RELEV PH">' + (feature.properties['RELEV PH'] !== null ? autolinker.link(feature.properties['RELEV PH'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">CODIGO IPV</th>\
+                        <td class="visible-with-data" id="CODIGO IPV">' + (feature.properties['CODIGO IPV'] !== null ? autolinker.link(feature.properties['CODIGO IPV'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Cobranza_Cod_IPV_1_0() {
+            return {
+                pane: 'pane_Cobranza_Cod_IPV_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(232,113,141,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_Cobranza_Cod_IPV_1');
+        map.getPane('pane_Cobranza_Cod_IPV_1').style.zIndex = 401;
+        map.getPane('pane_Cobranza_Cod_IPV_1').style['mix-blend-mode'] = 'normal';
+        var layer_Cobranza_Cod_IPV_1 = new L.geoJson(json_Cobranza_Cod_IPV_1, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Cobranza_Cod_IPV_1',
+            layerName: 'layer_Cobranza_Cod_IPV_1',
+            pane: 'pane_Cobranza_Cod_IPV_1',
+            onEachFeature: pop_Cobranza_Cod_IPV_1,
+            style: style_Cobranza_Cod_IPV_1_0,
+        });
+        bounds_group.addLayer(layer_Cobranza_Cod_IPV_1);
+        map.addLayer(layer_Cobranza_Cod_IPV_1);
+        var osmGeocoder = new L.Control.Geocoder({
+            collapsed: true,
+            position: 'topleft',
+            text: 'Search',
+            title: 'Testing'
+        }).addTo(map);
+        document.getElementsByClassName('leaflet-control-geocoder-icon')[0]
+        .className += ' fa fa-search';
+        document.getElementsByClassName('leaflet-control-geocoder-icon')[0]
+        .title += 'Search for a place';
+        var overlaysTree = [
+        {label: '<b>Cobranza</b>', selectAllCheckbox: true, children: [
+            {label: '<img src="legend/Cobranza_Cod_IPV_1.png" /> Cobranza_Cod_IPV', layer: layer_Cobranza_Cod_IPV_1},]},
+        {label: '<b>Capa Base</b>', selectAllCheckbox: true, children: [
+            {label: "Google Style", layer: layer_GoogleStyle_0},]},]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: true,
+        });
+        lay.addTo(map);
+        setBounds();
+        </script>
+    </body>
+</html>
